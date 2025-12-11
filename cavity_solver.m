@@ -77,7 +77,7 @@ ymin = 0.0;      %                       maximum y location (m)
 ymax = 0.05;   	%                       maximum y location (m)
 Cx2 = 0.0;       % Coefficient for 2nd order damping (not required)
 Cy2 = 0.0;     	% Coefficient for 2nd order damping (not required)
-fsmall = 1.e-20; % small parameter
+fsmall = 1.0e-20; % small parameter
 
 %-- Derived input quantities (set by function 'set_derived_inputs' called from main)----
 
@@ -1171,6 +1171,15 @@ global u uold dt fp1
 % !************************************************************** */
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
+
+
+persistent res_history count_initialized
+
+if isempty(res_history)
+    res_history = zeros(5, neq); 
+    count_initialized = 0;
+end
+
 res(:)=0;
 for j=2:jmax-1
     for i=2:imax-1
@@ -1187,7 +1196,17 @@ N = (imax-2)*(jmax-2);
 for k=1:neq
     res(k) = sqrt(res(k)/N);
 
-    if n==ninit
+    % average for resinit
+    if n >= ninit && count_initialized < 10
+        count_initialized = count_initialized + 1;
+        res_history(count_initialized, k) = res(k);
+
+        if count_initialized == 10
+            resinit(k) = max(mean(res_history(:,k)), fsmall);
+        end
+    end
+    
+    if count_initialized < 10
         resinit(k) = max(res(k), fsmall);
     end
 
