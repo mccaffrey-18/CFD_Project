@@ -54,7 +54,7 @@ six    = 6.0;
 
 %--------- User sets inputs here  --------
 
-nmax = 500000;        % Maximum number of iterations
+nmax = 1000000;        % Maximum number of iterations
 iterout = 5000;       % Number of time steps between solution output
 imms = 0;             % Manufactured solution flag: = 1 for manuf. sol., = 0 otherwise
 isgs = 1;             % Symmetric Gauss-Seidel  flag: = 1 for SGS, = 0 for point Jacobi
@@ -67,7 +67,7 @@ Cx = 0.01;     	% Parameter for 4th order artificial viscosity in x
 Cy = 0.01;      	% Parameter for 4th order artificial viscosity in y
 toler = 1.e-10; 	% Tolerance for iterative residual convergence
 rkappa = 0.1;   	% Time derivative preconditioning constant
-Re = 100.0;      	% Reynolds number = rho*Uinf*L/rmu
+Re = 10.0;      	% Reynolds number = rho*Uinf*L/rmu
 pinf = 0.801333844662; % Initial pressure (N/m^2) -> from MMS value at cavity center
 uinf = 1.0;      % Lid velocity (m/s)
 rho = 1.0;       % Density (kg/m^3)
