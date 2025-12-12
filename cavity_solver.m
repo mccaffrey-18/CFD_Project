@@ -57,7 +57,7 @@ six    = 6.0;
 nmax = 500000;        % Maximum number of iterations
 iterout = 5000;       % Number of time steps between solution output
 imms = 0;             % Manufactured solution flag: = 1 for manuf. sol., = 0 otherwise
-isgs = 0;             % Symmetric Gauss-Seidel  flag: = 1 for SGS, = 0 for point Jacobi
+isgs = 1;             % Symmetric Gauss-Seidel  flag: = 1 for SGS, = 0 for point Jacobi
 irstr = 0;            % Restart flag: = 1 for restart (file 'restart.in', = 0 for initial run
 ipgorder = 0;         % Order of pressure gradient: 0 = 2nd, 1 = 3rd (not needed)
 lim = 1;              % variable to be used as the limiter sensor (= 1 for pressure)
@@ -939,21 +939,9 @@ for j=3:jmax-2
         uvel2 = u_local^2+v_local^2;
         beta2 = max(uvel2, rkappa*vel2ref);
 
-        lambda_x_max = max([ ...
-            half*(abs(u(i-2,j,2)) + sqrt(u(i-2,j,2)^2 + four*beta2)), ...
-            half*(abs(u(i-1,j,2)) + sqrt(u(i-1,j,2)^2 + four*beta2)), ...
-            half*(abs(u_local)    + sqrt(u_local^2 + four*beta2)),      ...
-            half*(abs(u(i+1,j,2)) + sqrt(u(i+1,j,2)^2 + four*beta2)), ...
-            half*(abs(u(i+2,j,2)) + sqrt(u(i+2,j,2)^2 + four*beta2))  ...
-        ]);
+        lambda_x_max = half*(abs(u_local) + sqrt(u_local^2 + four*beta2));
 
-        lambda_y_max = max([ ...
-            half*(abs(u(i,j-2,3)) + sqrt(u(i,j-2,3)^2 + four*beta2)), ...
-            half*(abs(u(i,j-1,3)) + sqrt(u(i,j-1,3)^2 + four*beta2)), ...
-            half*(abs(v_local)    + sqrt(v_local^2 + four*beta2)),      ...
-            half*(abs(u(i,j+1,3)) + sqrt(u(i,j+1,3)^2 + four*beta2)), ...
-            half*(abs(u(i,j+2,3)) + sqrt(u(i,j+2,3)^2 + four*beta2))  ...
-        ]);
+        lambda_y_max = half*(abs(v_local) + sqrt(v_local^2 + four*beta2));
 
         % x and y deriv
         pim2 = u(i-2,j,1); pim1 = u(i-1,j,1); pi = u(i,j,1); pip1 = u(i+1,j,1); pip2 = u(i+2,j,1);
@@ -996,7 +984,7 @@ function SGS_forward_sweep(~)
 
 global two half
 global imax jmax rho rhoinv dx dy rkappa rmu vel2ref
-global artviscx artviscy dt s u
+global artviscx artviscy dt s u uold
 
 % Symmetric Gauss-Siedel: Forward Sweep
 
@@ -1004,8 +992,60 @@ global artviscx artviscy dt s u
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
 
+for j=2:jmax-1
+    for i=2:imax-1
+        % updated 
+        % pressure
+        ulp = u(i-1, j, 1);
+        ubp = u(i, j-1, 1);
+
+        %x velo
+        ulu = u(i-1,j,2);
+        ubu = u(i,j-1,2);
+
+        % y velo
+        ulv = u(i-1,j,3);
+        ubv = u(i,j-1,3);
+        
+        % not updated yet
+        % pressure
+        urp = uold(i+1, j, 1);
+        utp = uold(i, j+1, 1);
+
+        %x velo
+        uru = uold(i+1,j,2);
+        utu = uold(i,j+1,2);
+
+        % y velo
+        urv = uold(i+1,j,3);
+        utv = uold(i,j+1,3);
+        
+        % middle
+        ucp = u(i,j,1);
+        ucu = u(i,j,2);
+        ucv = u(i,j,3);
 
 
+        dpdx = (urp - ulp) / (2*dx);
+        dpdy = (utp - ubp) / (2*dy);
+        dudx = (uru - ulu) / (2*dx);
+        dudy = (utu - ubu) / (2*dy);
+        dvdx = (urv - ulv) / (2*dx);
+        dvdy = (utv - ubv) / (2*dy);
+
+        d2udx2 = (ulu - 2*ucu + uru) / (dx^2);
+        d2udy2 = (ubu - 2*ucu + utu) / (dy^2);
+        d2vdx2 = (ulv - 2*ucv + urv) / (dx^2);
+        d2vdy2 = (ubv - 2*ucv + utv) / (dy^2);
+
+        uvel2 = ucu^2 + ucv^2;
+        beta2 = max(uvel2, rkappa * vel2ref);
+
+        u(i,j,1) = u(i,j,1) + dt(i,j) * beta2 * (artviscx(i,j)+artviscy(i,j)-rho*dudx-rho*dvdy);
+        u(i,j,2) = u(i,j,2) + dt(i,j)/rho*(-rho*ucu*dudx-rho*ucv*dudy-dpdx+rmu*d2udx2+rmu*d2udy2);
+        u(i,j,3) = u(i,j,3) + dt(i,j)/rho*(-rho*ucu*dvdx-rho*ucv*dvdy-dpdy+rmu*d2vdx2+rmu*d2vdy2);
+    end
+end
 
 
 end
@@ -1036,7 +1076,7 @@ function SGS_backward_sweep(~)
 
 global two half
 global imax jmax rho rhoinv dx dy rkappa rmu vel2ref
-global artviscx artviscy dt s u
+global artviscx artviscy dt s u uold
 
 % Symmetric Gauss-Siedel: Backward Sweep
 
@@ -1044,7 +1084,60 @@ global artviscx artviscy dt s u
 % !************ADD CODING HERE FOR INTRO CFD STUDENTS************ */
 % !************************************************************** */
 
+for j=jmax-1:-1:2
+    for i=imax-1:-1:2
+        % 
+        % pressure
+        ulp = u(i-1, j, 1);
+        ubp = u(i, j-1, 1);
 
+        %x velo
+        ulu = u(i-1,j,2);
+        ubu = u(i,j-1,2);
+
+        % y velo
+        ulv = u(i-1,j,3);
+        ubv = u(i,j-1,3);
+        
+        % updated
+        % pressure
+        urp = u(i+1, j, 1);
+        utp = u(i, j+1, 1);
+
+        %x velo
+        uru = u(i+1,j,2);
+        utu = u(i,j+1,2);
+
+        % y velo
+        urv = u(i+1,j,3);
+        utv = u(i,j+1,3);
+        
+        % middle
+        ucp = u(i,j,1);
+        ucu = u(i,j,2);
+        ucv = u(i,j,3);
+
+
+        dpdx = (urp - ulp) / (2*dx);
+        dpdy = (utp - ubp) / (2*dy);
+        dudx = (uru - ulu) / (2*dx);
+        dudy = (utu - ubu) / (2*dy);
+        dvdx = (urv - ulv) / (2*dx);
+        dvdy = (utv - ubv) / (2*dy);
+
+        d2udx2 = (ulu - 2*ucu + uru) / (dx^2);
+        d2udy2 = (ubu - 2*ucu + utu) / (dy^2);
+        d2vdx2 = (ulv - 2*ucv + urv) / (dx^2);
+        d2vdy2 = (ubv - 2*ucv + utv) / (dy^2);
+
+        uvel2 = ucu^2 + ucv^2;
+        beta2 = max(uvel2, rkappa * vel2ref);
+
+        u(i,j,1) = u(i,j,1) + dt(i,j) * beta2 * (artviscx(i,j)+artviscy(i,j)-rho*dudx-rho*dvdy);
+        u(i,j,2) = u(i,j,2) + dt(i,j)/rho*(-rho*ucu*dudx-rho*ucv*dudy-dpdx+rmu*d2udx2+rmu*d2udy2);
+        u(i,j,3) = u(i,j,3) + dt(i,j)/rho*(-rho*ucu*dvdx-rho*ucv*dvdy-dpdy+rmu*d2vdx2+rmu*d2vdy2);
+    end
+end
 
 
 end
@@ -1100,8 +1193,8 @@ for j=2:jmax-1
         d2vdx2 = (uold(i-1,j,3)-2*uold(i,j,3)+uold(i+1,j,3))/(dx^2);
         d2vdy2 = (uold(i,j-1,3)-2*uold(i,j,3)+uold(i,j+1,3))/(dy^2);
 
-        u_local = u(i,j,2);
-        v_local = u(i,j,3);
+        u_local = uold(i,j,2);
+        v_local = uold(i,j,3);
 
         uvel2 = u_local^2+v_local^2;
         beta2 = max(uvel2, rkappa*vel2ref);
@@ -1176,7 +1269,7 @@ global u uold dt fp1
 persistent res_history count_initialized
 
 if isempty(res_history)
-    res_history = zeros(5, neq); 
+    res_history = zeros(10, neq); 
     count_initialized = 0;
 end
 
@@ -1244,7 +1337,7 @@ function Discretization_Error_Norms(rL1norm, rL2norm, rLinfnorm)
 % y        % Temporary variable for y location
 % DE   	% Discretization error (absolute value)
 
-global zero imax jmax neq imms xmax xmin ymax ymin u
+global zero imax jmax neq imms xmax xmin ymax ymin u ummsArray
 
 if imms==1
 
@@ -1256,7 +1349,7 @@ if imms==1
     Nx = imax-2;
     Ny = jmax-2;
 
-    % Grid spacing
+    % Grid spacingI wa
     dx = (xmax - xmin)/(imax-1);
     dy = (ymax - ymin)/(jmax-1);
 
@@ -1277,7 +1370,7 @@ if imms==1
                 x = xmin + (i-1)*dx;
 
                 % Compute discretization error
-                DE = abs(u(i,j,k) - u_exact(x,y,k));
+                DE = abs(u(i,j,k) - ummsArray(i,j,k));
 
                 % Accumulate norms
                 DEsum = DEsum + DE;
@@ -1293,20 +1386,5 @@ if imms==1
     end
 
 end
-
-    function ue = u_exact(x, y, k)
-        % Returns exact solution at point (x, y) for variable k
-        % k = 1 -> pressure, k = 2 -> u, k = 3 -> v
-        switch k
-            case 1  % pressure
-                ue = sin(pi*x) * cos(pi*y);
-            case 2  % u-velocity
-                ue = cos(pi*x) * sin(pi*y);
-            case 3  % v-velocity
-                ue = -sin(pi*x) * cos(pi*y);
-            otherwise
-                ue = 0;
-        end
-    end
 
 end
