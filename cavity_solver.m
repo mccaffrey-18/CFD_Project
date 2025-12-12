@@ -26,8 +26,8 @@ global artviscy;  % Artificial viscosity in y-direction
 global ummsArray; % Array of umms values (funtion umms evaluated at all nodes)
 
 %************ Following are fixed parameters for array sizes *************
-imax = 41;   	% Number of points in the x-direction (use odd numbers only)
-jmax = 41;   	% Number of points in the y-direction (use odd numbers only)
+imax = 33;   	% Number of points in the x-direction (use odd numbers only)
+jmax = 33;   	% Number of points in the y-direction (use odd numbers only)
 neq = 3;       % Number of equation to be solved ( = 3: mass, x-mtm, y-mtm)
 %********************************************
 %***** All  variables declared here. **
@@ -56,7 +56,7 @@ six    = 6.0;
 
 nmax = 1000000;        % Maximum number of iterations
 iterout = 5000;       % Number of time steps between solution output
-imms = 0;             % Manufactured solution flag: = 1 for manuf. sol., = 0 otherwise
+imms = 1;             % Manufactured solution flag: = 1 for manuf. sol., = 0 otherwise
 isgs = 1;             % Symmetric Gauss-Seidel  flag: = 1 for SGS, = 0 for point Jacobi
 irstr = 0;            % Restart flag: = 1 for restart (file 'restart.in', = 0 for initial run
 ipgorder = 0;         % Order of pressure gradient: 0 = 2nd, 1 = 3rd (not needed)
@@ -947,8 +947,8 @@ for j=3:jmax-2
         pim2 = u(i-2,j,1); pim1 = u(i-1,j,1); pi = u(i,j,1); pip1 = u(i+1,j,1); pip2 = u(i+2,j,1);
         pjm2 = u(i,j-2,1); pjm1 = u(i,j-1,1); pj = u(i,j,1); pjp1 = u(i,j+1,1); pjp2 = u(i,j+2,1);
 
-        d4pdx4 = pim2-four*pim1+six*pi-four*pip1+pip2;
-        d4pdy4 = pjm2-four*pjm1+six*pj-four*pjp1+pjp2;
+        d4pdx4 = (pim2-four*pim1+six*pi-four*pip1+pip2)/(dx^4);
+        d4pdy4 = (pjm2-four*pjm1+six*pj-four*pjp1+pjp2)/(dy^4);
 
         artviscx(i,j) = -lambda_x_max*Cx*dx^3/beta2*d4pdx4;
         artviscy(i,j) = -lambda_y_max*Cy*dy^3/beta2*d4pdy4;
@@ -984,7 +984,7 @@ function SGS_forward_sweep(~)
 
 global two half
 global imax jmax rho rhoinv dx dy rkappa rmu vel2ref
-global artviscx artviscy dt s u uold
+global artviscx artviscy dt s u
 
 % Symmetric Gauss-Siedel: Forward Sweep
 
@@ -994,7 +994,6 @@ global artviscx artviscy dt s u uold
 
 for j=2:jmax-1
     for i=2:imax-1
-        % updated 
         % pressure
         ulp = u(i-1, j, 1);
         ubp = u(i, j-1, 1);
@@ -1007,18 +1006,17 @@ for j=2:jmax-1
         ulv = u(i-1,j,3);
         ubv = u(i,j-1,3);
         
-        % not updated yet
         % pressure
-        urp = uold(i+1, j, 1);
-        utp = uold(i, j+1, 1);
+        urp = u(i+1, j, 1);
+        utp = u(i, j+1, 1);
 
         %x velo
-        uru = uold(i+1,j,2);
-        utu = uold(i,j+1,2);
+        uru = u(i+1,j,2);
+        utu = u(i,j+1,2);
 
         % y velo
-        urv = uold(i+1,j,3);
-        utv = uold(i,j+1,3);
+        urv = u(i+1,j,3);
+        utv = u(i,j+1,3);
         
         % middle
         ucp = u(i,j,1);
@@ -1076,7 +1074,7 @@ function SGS_backward_sweep(~)
 
 global two half
 global imax jmax rho rhoinv dx dy rkappa rmu vel2ref
-global artviscx artviscy dt s u uold
+global artviscx artviscy dt s u
 
 % Symmetric Gauss-Siedel: Backward Sweep
 
